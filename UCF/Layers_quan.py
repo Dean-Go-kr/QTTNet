@@ -1,15 +1,8 @@
 import math
 import numpy as np
 import tensorflow as tf
-from utils import glorot_initializer, get_variable, matmul, renormalize_tt_cores, truncated_initializer
+from utils import glorot_initializer, get_variable, renormalize_tt_cores, full
 from Quantize import fw,fa,fbn_G,fbn_B,fbn_mean,fbn_var,fbn_x
-
-from t3f.initializers import glorot_initializer as fc_glorot_initializer
-from t3f.ops import matmul as fc_matmul
-from t3f.ops import renormalize_tt_cores as fc_renormalize_tt_cores
-from t3f.variables import get_variable as fc_get_variable
-
-from BatchNorm import BatchNorm
 
 def linear(input,
 		   output_size,
@@ -109,14 +102,11 @@ def conv_3d_tt(input,
 			filters_shape = [[upper] + input_ch_modes, [lower] + output_ch_modes]
 		tt_initializer = glorot_initializer(filters_shape, tt_rank = [1] + tt_ranks + [1])
 		tt_filters = get_variable('tt_filters', initializer = tt_initializer, regularizer = filter_regularizer, trainable = True)
-
 		
-		identity_matrix = tf.eye(np.prod(filters_shape[0]))
-		filters = matmul(identity_matrix, renormalize_tt_cores(tt_filters), conv=True)
-
+		# TT-cores are merged to original kernel shape
+		filters = full(renormalize_tt_cores(tt_filters))
 		
 		filters = tf.reshape(filters, [upper] + input_ch_modes + [lower] + output_ch_modes)
-
 		
 		inch_orders = []
 		outch_orders = []

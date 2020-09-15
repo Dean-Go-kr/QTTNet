@@ -8,8 +8,8 @@ from tensorflow.python.client import device_lib
 import numpy as np
 from openpyxl import Workbook
 
-import InputData_fold
-import Networks_dong
+import InputData
+import Networks
 
 
 flags = tf.app.flags
