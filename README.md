@@ -1,4 +1,4 @@
-## QTTNet: Quantized Tensor Train Neural Networks for 3D Object and Video Recognition
+### QTTNet: Quantized Tensor Train Neural Networks for 3D Object and Video Recognition
 
 This is code for implementation of QTTNet
 
@@ -19,17 +19,28 @@ To prepare dataset for training QTTNet, you should run py files by order.
 - ModelNet
 
 	* 'QTTNet/ModelNet40/data/__convert_modelnet40.py__': Convert npy.tar from official voxelized data(.mat)
-	* 'QTTNet/ModelNet40/data/data_loader.py': Prepare data(.h5) for training QTTNet & Augmentation
-	* 'QTTNet/ModelNet40/data/h5.py': Convert to h5 files to tfrecord
+	* 'QTTNet/ModelNet40/data/__data_loader.py__': Prepare data(.h5) for training QTTNet & Augmentation
+	* 'QTTNet/ModelNet40/data/__h5.py__': Convert to h5 files to tfrecord
 
 - UCF
 
-	* /UCF/PrepareData.py: Read video data and prepare material for training QTTNet
+	* 'QTTNet/UCF/__PrepareData.py__': Read video data and prepare material for training QTTNet
+	* 'QTTNet/UCF/__InputData.py__': Input data to QTTNet & Augmentation
 
 ## Experiment
 
+ModelNet40
+```
+$ python Modelnet_main.py --data_dir '/data_dir/' --model_dir '/model_dir/'
+```
 
-Train small i-RevNet on Cifar-10, takes about 5 hours and yields an accuracy of ~94.5%
+UCF
 ```
-$ python CIFAR_main.py --nBlocks 18 18 18 --nStrides 1 2 2 --nChannels 16 64 256
+$ python Action3DCNN.py flag_log_dir '/log_dir/'
 ```
+
+## Extra
+
+- '__Quantize.py__': Quantization code of Weight(W), Activation(A), Batch Normalization(BN)
+- '__BatchNorm.py__': Code for quantized BN
+- '__utils.py__': Functions for operations of Tensor Train cores
