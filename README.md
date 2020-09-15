@@ -1,4 +1,4 @@
-### QTTNet: Quantized Tensor Train Neural Networks for 3D Object and Video Recognition
+# QTTNet: Quantized Tensor Train Neural Networks for 3D Object and Video Recognition
 
 This is code for implementation of QTTNet
 
