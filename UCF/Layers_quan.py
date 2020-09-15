@@ -64,65 +64,6 @@ def maxpool_3d(input,
 
 	return output
 
-def linear_tt(input,
-			  output_size,
-			  input_modes,
-			  output_modes,
-			  tt_ranks,
-			  weights_regularizer = None,
-			  biases_initializer = None,
-			  biases_regularizer = None,
-			  name_scope = None):
-	
-	assert input.get_shape()[-1].value == np.prod(input_modes), 'Input modes must be the factors of input tensor.'
-	assert output_size == np.prod(output_modes), 'Output modes must be the factors of output tensor.'
-	assert len(input_modes) == len(output_modes), 'Modes of input and output must be equal.'
-	assert len(tt_ranks) == len(input_modes) - 1, 'The number of TT ranks must be matching to the tensor modes.'
-
-	with tf.variable_scope(name_scope):
-		
-		tt_initializer = fc_glorot_initializer([input_modes, output_modes], tt_rank = [1] + tt_ranks + [1])
-		tt_weights = fc_get_variable('tt_weights', initializer = tt_initializer, regularizer = weights_regularizer, trainable = True)
-
-		output = fc_matmul(input, fc_renormalize_tt_cores(tt_weights))
-		if biases_initializer is not None:
-			tfv_biases = tf.get_variable('var_biases', [output_size], initializer = biases_initializer, regularizer = biases_regularizer, trainable = True)
-			output = tf.nn.bias_add(output, tfv_biases, name = 'output')
-
-	return output
-
-def linear_tt_relu(input,
-			  output_size,
-			  input_modes,
-			  output_modes,
-			  tt_ranks,
-			  weights_regularizer = None,
-			  biases_initializer = None,
-			  biases_regularizer = None,
-			  name_scope = None):
-	
-	assert input.get_shape()[-1].value == np.prod(input_modes), 'Input modes must be the factors of input tensor.'
-	assert output_size == np.prod(output_modes), 'Output modes must be the factors of output tensor.'
-	assert len(input_modes) == len(output_modes), 'Modes of input and output must be equal.'
-	assert len(tt_ranks) == len(input_modes) - 1, 'The number of TT ranks must be matching to the tensor modes.'
-
-	with tf.variable_scope(name_scope):
-		
-		tt_initializer = glorot_initializer([input_modes, output_modes], tt_rank = [1] + tt_ranks + [1])
-		tt_weights = get_variable('tt_weights', initializer = tt_initializer, regularizer = weights_regularizer, trainable = True)
-                
-		output = matmul(input, renormalize_tt_cores(tt_weights))
-		if biases_initializer is not None:
-			tfv_biases = tf.get_variable('var_biases', [output_size], initializer = biases_initializer, regularizer = biases_regularizer, trainable = True)
-			output = tf.nn.bias_add(output, tfv_biases, name = 'output')
-
-	#output = BatchNorm(output,center=True, scale=True, is_training=True, decay=0.997, Random=None, data_format=None)
-	output = tf.nn.relu(output)
-	output = fa(output)
-
-	return output
-
-
 
 def conv_3d_tt(input,
 			   output_chs,

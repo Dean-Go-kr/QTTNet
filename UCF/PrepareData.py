@@ -4,9 +4,9 @@ import h5py
 import numpy as np
 
 
-base_path = 'C:/Users/DONG/Desktop/data/'
-dataset_path = 'D:/data/UCF/UCF11_updated_mpg/'
-stack_path = 'D:/data/UCF/stack/'
+base_path = '/data/'
+dataset_path = '/data/UCF/UCF11_updated_mpg/'
+stack_path = '/data/UCF/stack/'
 
 g_dict_labels = {'basketball':1, 'biking':2, 'diving':3, 'golf_swing':4, 'horse_riding':5,
 				 'soccer_juggling':6, 'swing':7, 'tennis_swing':8, 'trampoline_jumping':9, 'volleyball_spiking':10, 'walking':11}

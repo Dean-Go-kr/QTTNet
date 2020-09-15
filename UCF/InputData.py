@@ -7,9 +7,9 @@ import random
 
 #import OpticalColor
 
-base_path = '/data/dong/ucf11/dingheng/'
-dataset_path = '/data/dong/ucf11/dingheng/UCF11_updated_mpg/'
-stack_path = '/data/dong/ucf11/dingheng/stack/'
+base_path = '/data/ucf11/'
+dataset_path = '/data/ucf11/UCF11_updated_mpg/'
+stack_path = '/data/ucf11/stack/'
 
 NORM_FRAMES = 50
 
@@ -117,9 +117,9 @@ def get_one_group_dataset(str_log_dir, str_restore_ckpt = None, flag_optical_flo
 			
 			class_path = stack_path + 'rgb/' + word + '/'
 			lst_contents = os.listdir(class_path)
-			with h5py.File('/data/dong/ucf11/dingheng/fold_index/'+ word+'_fold_index.h5', 'r') as file:
-					fold_index = file.get('fold_1').value
-					#print(word, fold_index, len(lst_contents))
+			with h5py.File('/data/'+ word+'_data'.h5', 'r') as file:
+					fold_index = file.get('fold').value
+
 			# every video in class directory
 			for k in range(0, len(lst_contents)):
 				if os.path.isfile(class_path + lst_contents[k]) == True:

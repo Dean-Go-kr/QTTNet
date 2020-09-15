@@ -4,7 +4,7 @@ import tensorflow as tf
 from t3f.tensor_train import TensorTrain
 from t3f.tensor_train_batch import TensorTrainBatch
 from t3f.tensor_train_base import TensorTrainBase
-from t3f import shapes
+from t3f import shapes, utils, decompositions, initializers
 import math
 from Quantize import fw,fa,fBits,fbn_G,fbn_B,fbn_mean,fbn_var,fbn_x
 
@@ -122,10 +122,12 @@ def matrix_with_random_cores(shape, tt_rank=2, mean=0., stddev=1.,
                          tt_rank[i + 1])
       tt_cores[i] = tf.random_normal(curr_core_shape, mean=mean, stddev=stddev,
                                      dtype=dtype)
-      #tt_cores[i] = tf.truncated_normal(curr_core_shape, mean=mean, stddev=stddev,
-      #                                dtype=dtype)
-      # Quantization 
-      tt_cores[i] = fBits(tt_cores[i], 8)
+      # Quantization
+      if i==0 or i==num_dims-1: 
+        tt_cores[i] = fBits(tt_cores[i], 8)
+      else:
+        tt_cores[i] = fBits(tt_cores[i], 8)
+      #print('!!!!tt_cores!! after:', tt_cores[i])
 
     return TensorTrain(tt_cores, shape, tt_rank)
 
@@ -389,230 +391,6 @@ def get_variable(name,
         tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, loss)
     return v
 
-
-def tt_dense_matmul_conv(tt_matrix_a, matrix_b):
-  """Multiplies a TT-matrix by a regular matrix, returns a regular matrix.
-
-  Args:
-    tt_matrix_a: `TensorTrain` object containing a TT-matrix of size M x N
-    matrix_b: tf.Tensor of size N x P
-
-  Returns
-    tf.Tensor of size M x P
-  """
-  print("CONV MATMUL")
-  if not isinstance(tt_matrix_a, TensorTrain) or not tt_matrix_a.is_tt_matrix():
-    raise ValueError('The first argument should be a TT-matrix')
-
-  ndims = tt_matrix_a.ndims()
-  a_columns = tt_matrix_a.get_shape().as_list()[1]
-  b_rows = matrix_b.get_shape().as_list()[0]
-  if a_columns is not None and b_rows is not None:
-    if a_columns != b_rows:
-      raise ValueError('Arguments shapes should align got %d and %d instead.' %
-                       (tt_matrix_a.get_shape(), matrix_b.get_shape()))
-
-  a_shape = shapes.lazy_shape(tt_matrix_a)
-  a_raw_shape = shapes.lazy_raw_shape(tt_matrix_a)
-  if matrix_b.get_shape().is_fully_defined():
-    b_shape = matrix_b.get_shape().as_list()
-  else:
-    b_shape = tf.shape(matrix_b)
-  a_ranks = shapes.lazy_tt_ranks(tt_matrix_a)
-  # If A is (i0, ..., id-1) x (j0, ..., jd-1) and B is (j0, ..., jd-1) x K,
-  # data is (K, j0, ..., jd-2) x jd-1 x 1
-  data = tf.transpose(matrix_b)
-  data = tf.reshape(data, (-1, a_raw_shape[1][-1], 1))
-
-  for core_idx in reversed(range(ndims)):
-    curr_core = tt_matrix_a.tt_cores[core_idx]
-    # On the k = core_idx iteration, after applying einsum the shape of data
-    # becomes ik x (ik-1..., id-1, K, j0, ..., jk-1) x rank_k
-    # Quantization every multiplication
-    # After last multiplication, no quantization
-    curr_core = fw(curr_core)
-    data = tf.einsum('aijb,rjb->ira', curr_core, data)
-
-    if core_idx > 0:
-      # After reshape the shape of data becomes
-      # (ik, ..., id-1, K, j0, ..., jk-2) x jk-1 x rank_k
-      new_data_shape = (-1, a_raw_shape[1][core_idx - 1], a_ranks[core_idx])
-      data = tf.reshape(data, new_data_shape)
-    data = fw(data)
-  # At the end the shape of the data is (i0, ..., id-1) x K
-  return tf.reshape(data, (a_shape[0], b_shape[1]))
-
-
-def tt_dense_matmul(tt_matrix_a, matrix_b):
-  """Multiplies a TT-matrix by a regular matrix, returns a regular matrix.
-
-  Args:
-    tt_matrix_a: `TensorTrain` object containing a TT-matrix of size M x N
-    matrix_b: tf.Tensor of size N x P
-
-  Returns
-    tf.Tensor of size M x P
-  """
-  print("DENSE MATMUL")
-  if not isinstance(tt_matrix_a, TensorTrain) or not tt_matrix_a.is_tt_matrix():
-    raise ValueError('The first argument should be a TT-matrix')
-
-  ndims = tt_matrix_a.ndims()
-  a_columns = tt_matrix_a.get_shape().as_list()[1]
-  b_rows = matrix_b.get_shape().as_list()[0]
-  print('a_clums, b_rows:', a_columns, b_rows)
- 
-  if a_columns is not None and b_rows is not None:
-    if a_columns != b_rows:
-      raise ValueError('Arguments shapes should align got %d and %d instead.' %
-                       (tt_matrix_a.get_shape(), matrix_b.get_shape()))
-
-  a_shape = shapes.lazy_shape(tt_matrix_a)
-  a_raw_shape = shapes.lazy_raw_shape(tt_matrix_a)
-  if matrix_b.get_shape().is_fully_defined():
-    b_shape = matrix_b.get_shape().as_list()
-  else:
-    b_shape = tf.shape(matrix_b)
-  a_ranks = shapes.lazy_tt_ranks(tt_matrix_a)
-  # If A is (i0, ..., id-1) x (j0, ..., jd-1) and B is (j0, ..., jd-1) x K,
-  # data is (K, j0, ..., jd-2) x jd-1 x 1
-  data = tf.transpose(matrix_b)
-  data = tf.reshape(data, (-1, a_raw_shape[1][-1], 1))
-  for core_idx in reversed(range(ndims)):
-    curr_core = tt_matrix_a.tt_cores[core_idx]
-    # On the k = core_idx iteration, after applying einsum the shape of data
-    # becomes ik x (ik-1..., id-1, K, j0, ..., jk-1) x rank_k
-    # Quantization every multiplication
-    # After last multiplication, no quantization
-    curr_core = fw(curr_core)
-    data = tf.einsum('aijb,rjb->ira', curr_core, data)
-        
-    if core_idx > 0:
-      # After reshape the shape of data becomes
-      # (ik, ..., id-1, K, j0, ..., jk-2) x jk-1 x rank_k
-      new_data_shape = (-1, a_raw_shape[1][core_idx - 1], a_ranks[core_idx])
-      data = tf.reshape(data, new_data_shape)
-      data = fw(data)
-    
-  # At the end the shape of the data is (i0, ..., id-1) x K
-  return tf.reshape(data, (a_shape[0], b_shape[1]))
-
-def dense_tt_matmul_conv(matrix_a, tt_matrix_b):
-  """Multiplies a regular matrix by a TT-matrix, returns a regular matrix.
-
-  Args:
-    matrix_a: tf.Tensor of size M x N
-    tt_matrix_b: `TensorTrain` object containing a TT-matrix of size N x P
-
-  Returns
-    tf.Tensor of size M x P
-  """
-#   TODO: make a more efficient implementation.
-  a_t = tf.transpose(matrix_a)
-  b_t = transpose(tt_matrix_b)
-  return tf.transpose(tt_dense_matmul_conv(b_t, a_t))
-
-def dense_tt_matmul(matrix_a, tt_matrix_b):
-  """Multiplies a regular matrix by a TT-matrix, returns a regular matrix.
-
-  Args:
-    matrix_a: tf.Tensor of size M x N
-    tt_matrix_b: `TensorTrain` object containing a TT-matrix of size N x P
-
-  Returns
-    tf.Tensor of size M x P
-  """
-#   TODO: make a more efficient implementation.
-  a_t = tf.transpose(matrix_a)
-  b_t = transpose(tt_matrix_b)
-  return tf.transpose(tt_dense_matmul(b_t, a_t))
-
-def transpose(tt_matrix, name='t3f_transpose'):
-  """Transpose a TT-matrix or a batch of TT-matrices.
-
-  Args:
-    tt_matrix: `TensorTrain` or `TensorTrainBatch` object containing a TT-matrix
-      (or a batch of TT-matrices).
-    name: string, name of the Op.
-
-  Returns:
-    `TensorTrain` or `TensorTrainBatch` object containing a transposed TT-matrix
-      (or a batch of TT-matrices).
-
-  Raises:
-    ValueError if the argument is not a TT-matrix.
-  """
-  if not isinstance(tt_matrix, TensorTrainBase) or not tt_matrix.is_tt_matrix():
-    raise ValueError('The argument should be a TT-matrix.')
-
-  with tf.name_scope(name):
-    transposed_tt_cores = []
-    for core_idx in range(tt_matrix.ndims()):
-      curr_core = tt_matrix.tt_cores[core_idx]
-      if isinstance(tt_matrix, TensorTrain):
-        transposed_tt_cores.append(tf.transpose(curr_core, (0, 2, 1, 3)))
-      else:
-        # TensorTrainBatch.
-        transposed_tt_cores.append(tf.transpose(curr_core, (0, 1, 3, 2, 4)))
-
-    tt_matrix_shape = tt_matrix.get_raw_shape()
-    transposed_shape = tt_matrix_shape[1], tt_matrix_shape[0]
-    tt_ranks = tt_matrix.get_tt_ranks()
-    if isinstance(tt_matrix, TensorTrain):
-      return TensorTrain(transposed_tt_cores, transposed_shape, tt_ranks)
-    else:
-      batch_size = tt_matrix.batch_size
-      return TensorTrainBatch(transposed_tt_cores, transposed_shape, tt_ranks,
-                              batch_size)
-
-
-def matmul(a, b, name='t3f_matmul', conv =None):
-  """Multiplies two matrices that can be TT-, dense, or sparse.
-
-  Note that multiplication of two TT-matrices returns a TT-matrix with much
-  larger ranks.
-  Also works for multiplying two batches of TT-matrices or a product between a
-  TT-matrix and a batch of TT-matrices (with broadcasting).
-
-  Args:
-    a: `TensorTrain`, `TensorTrainBatch`, tf.Tensor, or tf.SparseTensor of
-      size M x N
-    b: `TensorTrain`, `TensorTrainBatch`, tf.Tensor, or tf.SparseTensor of
-      size N x P
-    name: string, name of the Op.
-
-  Returns
-    If both arguments are `TensorTrain` objects, returns a `TensorTrain`
-      object containing a TT-matrix of size M x P.
-    If at least one of the arguments is a `TensorTrainBatch` object, returns
-      a `TensorTrainBatch` object containing a batch of TT-matrices of size
-      M x P.
-    Otherwise, returns tf.Tensor of size M x P.
-  """
-#   TODO: is it safe to check types? What if a class is derived from TT?
-  if isinstance(a, TensorTrainBase) and isinstance(b, TensorTrainBase):
-    with tf.name_scope(name):
-      return tt_tt_matmul(a, b)
-  elif isinstance(a, TensorTrain) and isinstance(b, tf.Tensor):
-    with tf.name_scope(name):
-      return tt_dense_matmul(a, b)
-  elif isinstance(a, tf.Tensor) and isinstance(b, TensorTrain) and conv==True:
-    with tf.name_scope(name):
-      return dense_tt_matmul_conv(a, b)
-  elif isinstance(a, tf.Tensor) and isinstance(b, TensorTrain) and conv==None:
-    with tf.name_scope(name):
-      return dense_tt_matmul(a, b)
-  elif isinstance(a, TensorTrain) and isinstance(b, tf.SparseTensor):
-    with tf.name_scope(name):
-      return tt_sparse_matmul(a, b)
-  elif isinstance(a, tf.SparseTensor) and isinstance(b, TensorTrain):
-    with tf.name_scope(name):
-      return sparse_tt_matmul(a, b)
-  else:
-    raise ValueError('Argument types are not supported in matmul: %s x %s' %
-                     (a, b))
-
-
 def renormalize_tt_cores(tt, epsilon=1e-8, name='t3f_renormalize_tt_cores'):
     """Renormalizes TT-cores to make them of the same Frobenius norm.
 
@@ -645,7 +423,6 @@ def renormalize_tt_cores(tt, epsilon=1e-8, name='t3f_renormalize_tt_cores'):
         fact = tf.exp(running_log_norm)
         for i, core in enumerate(tt.tt_cores):
           new_cores.append(core * fact / core_norms[i])
-
         return TensorTrain(new_cores)
       else:
         sz = (tt.batch_size,) + (len(tt.tt_cores[0].shape) - 1) * (1,)
@@ -664,3 +441,112 @@ def renormalize_tt_cores(tt, epsilon=1e-8, name='t3f_renormalize_tt_cores'):
           new_cores.append(tf.multiply(core, exp_fact / fact_list[i]))
 
         return TensorTrainBatch(new_cores)
+
+
+def full(tt, name='t3f_full'):
+  """Converts a TensorTrain into a regular tensor or matrix (tf.Tensor).
+
+  Args:
+    tt: `TensorTrain` or `TensorTrainBatch` object.
+    name: string, name of the Op.
+
+  Returns:
+    tf.Tensor.
+  """
+  with tf.name_scope(name):
+    if isinstance(tt, TensorTrainBatch):
+      # Batch of Tensor Trains.
+      print('--------going to full tt batch--------')
+      return _full_tt_batch(tt)
+    else:
+      # TensorTrain object (not batch).
+      print('--------going to full tt--------')
+      return _full_tt(tt)
+
+
+def _full_tt(tt):
+  """Converts a TensorTrain into a regular tensor or matrix (tf.Tensor).
+
+  Args:
+    tt: `TensorTrain` object.
+
+  Returns:
+    tf.Tensor.
+  """
+  num_dims = tt.ndims()
+  ranks = shapes.lazy_tt_ranks(tt)
+  shape = shapes.lazy_shape(tt)
+  raw_shape = shapes.lazy_raw_shape(tt)
+  
+  quan_core_list = []
+  for i in range(num_dims):
+    print('FP core:', tt.tt_cores[i])
+    if i == 0 or i == num_dims-1:
+      quan_core_list.append(fw(tt.tt_cores[i]))
+    else:
+      quan_core_list.append(fw(tt.tt_cores[i]))
+    print('8bit core:', quan_core_list[i])
+  res = quan_core_list[0]
+  # Quan first core
+  for i in range(1, num_dims):
+    res = tf.reshape(res, (-1, ranks[i]))
+    curr_core = tf.reshape(quan_core_list[i], (ranks[i], -1))
+    res = tf.matmul(res, curr_core)
+    print('core multi FP: ', res)
+    # Quan mult cores
+    res = fw(res)
+    print('core multi 8bit: ', res)
+  if tt.is_tt_matrix():
+    intermediate_shape = []
+    for i in range(num_dims):
+      intermediate_shape.append(raw_shape[0][i])
+      intermediate_shape.append(raw_shape[1][i])
+    res = tf.reshape(res, intermediate_shape)
+    transpose = []
+    for i in range(0, 2 * num_dims, 2):
+      transpose.append(i)
+    for i in range(1, 2 * num_dims, 2):
+      transpose.append(i)
+    res = tf.transpose(res, transpose)
+    return tf.reshape(res, shape)
+  else:
+    return tf.reshape(res, shape)
+
+
+def _full_tt_batch(tt):
+  """Converts a TensorTrainBatch into a regular tensor or matrix (tf.Tensor).
+
+  Args:
+    tt: `TensorTrainBatch` object.
+
+  Returns:
+    tf.Tensor.
+  """
+  num_dims = tt.ndims()
+  ranks = shapes.lazy_tt_ranks(tt)
+  shape = shapes.lazy_shape(tt)
+  raw_shape = shapes.lazy_raw_shape(tt)
+
+  res = tt.tt_cores[0]
+  batch_size = shapes.lazy_batch_size(tt)
+  for i in range(1, num_dims):
+    res = tf.reshape(res, (batch_size, -1, ranks[i]))
+    curr_core = tf.reshape(tt.tt_cores[i], (batch_size, ranks[i], -1))
+    res = tf.einsum('oqb,obw->oqw', res, curr_core)
+    res = fw(res)
+    print("full_res: ", res)
+  if tt.is_tt_matrix():
+    intermediate_shape = [batch_size]
+    for i in range(num_dims):
+      intermediate_shape.append(raw_shape[0][i])
+      intermediate_shape.append(raw_shape[1][i])
+    res = tf.reshape(res, intermediate_shape)
+    transpose = [0]
+    for i in range(0, 2 * num_dims, 2):
+      transpose.append(i + 1)
+    for i in range(1, 2 * num_dims, 2):
+      transpose.append(i + 1)
+    res = tf.transpose(res, transpose)
+    return tf.reshape(res, shape)
+  else:
+    return tf.reshape(res, shape)

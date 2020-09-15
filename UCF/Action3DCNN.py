@@ -29,11 +29,9 @@ flags.DEFINE_boolean('flag_optical_flow', True, 'Whether to use optical flow.')
 
 flags.DEFINE_integer('flag_group', None, 'Which group should be set as validation set.')
 
-flags.DEFINE_integer('flag_main_struct', 3, 'Number to choose the network struct: \
-		0 denotes tiny network just to text data split; \
-		1 denotes original uncompressed network; \
-		2 denotes tt compressed network.\
-		3 denotes tt+Quan compressed network.')
+flags.DEFINE_integer('flag_main_struct', 1, 'Number to choose the network struct: \
+		0 denotes original CNN; \
+		1 denotes tt+Quan compressed network.')
 
 flags.DEFINE_string('gpu_number', '1', 'gpu_number')
 
@@ -75,15 +73,9 @@ def run_training(b_gpu_enabled = False, str_restore_ckpt = None):
 
 
 			if FLAGS.flag_main_struct == 0:
-				loss_rgb, eval_rgb, inf_rgb = Networks_dong.neural_network_tiny(batch_cubes_rgb, batch_labels, tfv_train_phase, 'rgb')
-				loss_optical, eval_optical, inf_optical = Networks_dong.neural_network_tiny(batch_cubes_optical, batch_labels, tfv_train_phase, 'optical')
+				loss_rgb, eval_rgb, inf_rgb = Networks_dong.original_cnn(batch_cubes_rgb, batch_labels, tfv_train_phase, 'rgb')
+				loss_optical, eval_optical, inf_optical = Networks_dong.original_cnn(batch_cubes_optical, batch_labels, tfv_train_phase, 'optical')
 			elif FLAGS.flag_main_struct == 1:
-				loss_rgb, eval_rgb, inf_rgb = Networks_dong.neural_network_struct(batch_cubes_rgb, batch_labels, tfv_train_phase, 'rgb')
-				loss_optical, eval_optical, inf_optical = Networks_dong.neural_network_struct(batch_cubes_optical, batch_labels, tfv_train_phase, 'optical')
-			elif FLAGS.flag_main_struct == 2:
-				loss_rgb, eval_rgb, inf_rgb = Networks_dong.neural_network_struct_tt_conv_fc(batch_cubes_rgb, batch_labels, tfv_train_phase, 'rgb')
-				loss_optical, eval_optical, inf_optical = Networks_dong.neural_network_struct_tt_conv_fc(batch_cubes_optical, batch_labels, tfv_train_phase, 'optical')
-			elif FLAGS.flag_main_struct == 3:
 				loss_rgb, eval_rgb, inf_rgb = Networks_dong.neural_network_struct_tt_quan_conv_fc(batch_cubes_rgb, batch_labels, tfv_train_phase, 'rgb')
 				loss_optical, eval_optical, inf_optical = Networks_dong.neural_network_struct_tt_quan_conv_fc(batch_cubes_optical, batch_labels, tfv_train_phase, 'optical')
 			else:

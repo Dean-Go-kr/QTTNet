@@ -27,7 +27,7 @@ def batch_normalization(x, mean, variance, offset, scale, epsilon):
       x = x + offset
     return x
 
-
+# BN for 2DCNN
 def BatchNorm(x,center=True, scale=True, is_training=True, decay=0.9, epsilon=1./(2**15), Random=None, data_format=None):
   with tf.variable_scope('BatchNorm',reuse=tf.AUTO_REUSE):
     shape = x.get_shape().as_list()
@@ -48,11 +48,8 @@ def BatchNorm(x,center=True, scale=True, is_training=True, decay=0.9, epsilon=1.
     else:
         gamma = None
 
-
     moving_mean = tf.Variable(tf.constant(0.0,tf.float32,shape=[channel]),
       name='moving_mean', trainable=False)
-    
-    
 
     moving_variance = tf.Variable(tf.constant(1.0,tf.float32,shape=[channel]),
       name='moving_variance', trainable=False)
@@ -79,12 +76,10 @@ def BatchNorm(x,center=True, scale=True, is_training=True, decay=0.9, epsilon=1.
   return x
 
 
+# BN for 3DCNN
 def BatchNorm3d(x,center=True, scale=True, is_training=True, decay=0.9, epsilon=1./(2**15), Random=True, data_format='NDHWC'):
   with tf.variable_scope('BatchNorm',reuse=tf.AUTO_REUSE):
     shape = x.get_shape().as_list()
-    #if data_format=='NCHW' and len(shape)==4:
-    #  x = tf.transpose(x,[0,2,3,1]) # to NDHWC
-    #  pritn('batch norma shape:', x.shape)
     reduce_axis = [0,1,2,3] if len(shape) == 5 else [0]
 
     channel = x.get_shape().as_list()[-1]

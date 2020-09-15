@@ -112,14 +112,14 @@ def get_fw_fa(bitsW, bitsA, bitsB, bitsBN_G, bitsBN_B, bitsBN_mean, bitsBN_var, 
     return fw,fa,fBits,fbn_G,fbn_B,fbn_mean,fbn_var,fbn_x
 
 
-bitsW=4
-bitsA=4
-bitsB=4
-bitsBN_G=4
-bitsBN_B=4
-bitsBN_mean=4
-bitsBN_var=4
-bitsBN_x=4
+bitsW=8
+bitsA=8
+bitsB=8
+bitsBN_G=8
+bitsBN_B=8
+bitsBN_mean=8
+bitsBN_var=8
+bitsBN_x=8
 
 
 fw,fa,fBits,fbn_G,fbn_B,fbn_mean,fbn_var,fbn_x=\
