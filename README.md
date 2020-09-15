@@ -18,7 +18,7 @@ To prepare dataset for training QTTNet, you should run py files by order.
 
 - ModelNet
 
-	* 'QTTNet/ModelNet40/data/convert_modelnet40.py': Convert npy.tar from official voxelized data(.mat)
+	* 'QTTNet/ModelNet40/data/__convert_modelnet40.py__': Convert npy.tar from official voxelized data(.mat)
 	* 'QTTNet/ModelNet40/data/data_loader.py': Prepare data(.h5) for training QTTNet & Augmentation
 	* 'QTTNet/ModelNet40/data/h5.py': Convert to h5 files to tfrecord
 
