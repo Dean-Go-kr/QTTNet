@@ -1,6 +1,6 @@
 # QTTNet: Quantized Tensor Train Neural Networks for 3D Object and Video Recognition
 
-This is code for implementation of QTTNet
+This is code for the implementation of QTTNet [Paper Link](https://www.sciencedirect.com/science/article/pii/S0893608021002306)
 
 ## Requirements
 
@@ -9,12 +9,12 @@ This is code for implementation of QTTNet
 
 ## Data & Preparation
 
-Download the ModelNet and UCF on official link
+Download the ModelNet and UCF on the official link
 
 - ModelNet: https://modelnet.cs.princeton.edu/
 - UCF: https://www.crcv.ucf.edu/data/UCF_YouTube_Action.php
 
-To prepare dataset for training QTTNet, you should run py files by order.
+To prepare the datasets for training QTTNet, you should run py files by order.
 
 - ModelNet
 
