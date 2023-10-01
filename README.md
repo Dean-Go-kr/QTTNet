@@ -1,6 +1,6 @@
 # QTTNet: Quantized Tensor Train Neural Networks for 3D Object and Video Recognition
 
-This is code for the implementation of QTTNet [Paper Link](https://www.sciencedirect.com/science/article/pii/S0893608021002306)
+This is code for the implementation of QTTNet ([Paper Link](https://www.sciencedirect.com/science/article/pii/S0893608021002306))
 
 ## Requirements
 
